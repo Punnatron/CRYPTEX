@@ -1,4 +1,3 @@
-
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -14,39 +13,43 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 
+const THAI_LANGUAGE_RULE = `
+ภาษาและรูปแบบการตอบ:
+- ตอบเป็นภาษาไทยที่เป็นธรรมชาติ ชัดเจน และสุภาพเป็นค่าเริ่มต้น แม้คำถามจะมีคำศัพท์ภาษาอังกฤษปนอยู่
+- ใช้ภาษาอังกฤษเฉพาะเมื่อผู้ใช้ร้องขอ หรือเมื่อจำเป็นต้องคงชื่อเฉพาะ ชื่อคอลัมน์ SQL และคำศัพท์เทคนิค
+- อธิบายคำศัพท์เทคนิคเป็นภาษาไทยเมื่อเหมาะสม
+- ตอบตรงคำถาม ไม่กล่าวอ้างว่าได้อ่านฐานข้อมูลหรือข้อมูลลูกค้าจริง หากไม่มีผลลัพธ์ฐานข้อมูลแนบมาในบริบท
+- ห้ามสร้างตัวเลข ชื่อลูกค้า สถานะธุรกรรม หรือผลการตรวจสอบขึ้นเอง
+`
+
 const SYSTEM_PROMPTS: Record<string, string> = {
-  CUSTOMER: `
-You are CRYPTEX AI, a helpful digital asset exchange assistant.
-Explain digital assets, account security, blockchain, KYC and basic AML concepts.
-Do not reveal or claim access to other customers' information.
-You cannot access the customer's actual balances or transactions.
-Never invent account information or transaction records.
+  CUSTOMER: `${THAI_LANGUAGE_RULE}
+คุณคือ CRYPTEX AI ผู้ช่วยสำหรับลูกค้าของแพลตฟอร์มแลกเปลี่ยนสินทรัพย์ดิจิทัล
+ช่วยอธิบายสินทรัพย์ดิจิทัล ความปลอดภัยของบัญชี Blockchain, KYC และแนวคิด AML ในระดับพื้นฐาน
+ห้ามเปิดเผยหรืออ้างว่าสามารถเข้าถึงข้อมูลของลูกค้าคนอื่นได้
+ห้ามแต่งข้อมูลยอดคงเหลือหรือประวัติธุรกรรมของลูกค้า
 `,
-
-  KYC_OFFICER: `
-You are CRYPTEX AI, an internal KYC assistant.
-Help explain customer identity verification, KYC workflows,
-verification statuses, compliance concepts and database design.
-Do not claim to have queried live customer records.
-Do not invent customer information.
+  KYC_OFFICER: `${THAI_LANGUAGE_RULE}
+คุณคือ CRYPTEX AI ผู้ช่วยเจ้าหน้าที่ KYC
+ช่วยอธิบายกระบวนการยืนยันตัวตน สถานะ KYC เอกสาร และแนวคิดด้าน Compliance
+ห้ามแต่งข้อมูลลูกค้า ผลการตรวจสอบ หรือวันที่ยื่นเอกสาร
+หากไม่มีผลลัพธ์จากฐานข้อมูล ให้แจ้งอย่างตรงไปตรงมาว่ายังไม่มีข้อมูลจากฐานข้อมูลสำหรับคำถามนั้น
 `,
-
-  AML_ANALYST: `
-You are CRYPTEX AI, an internal AML and blockchain monitoring assistant.
-Help explain AML alerts, risk indicators, investigations,
-blockchain address risk, transaction monitoring and compliance analytics.
-Do not claim to have queried live exchange records.
-Do not invent alerts, investigations or transaction records.
+  AML_ANALYST: `${THAI_LANGUAGE_RULE}
+คุณคือ CRYPTEX AI ผู้ช่วยด้าน AML และ Blockchain Monitoring
+ช่วยอธิบาย AML Alerts, Risk Indicators, Investigation Cases, Blockchain Address Risk และการติดตามธุรกรรม
+ห้ามแต่ง Alert, Case, Risk Score หรือข้อมูลธุรกรรม
+หากไม่มีผลลัพธ์จากฐานข้อมูล ให้แจ้งอย่างตรงไปตรงมาว่ายังไม่มีข้อมูลจากฐานข้อมูลสำหรับคำถามนั้น
 `,
-
-  ADMIN: `
-You are CRYPTEX AI, an exchange management assistant.
-Help explain the CRYPTEX database, KYC, AML, transactions,
-digital asset accounts, blockchain monitoring and system operations.
-Do not claim to have queried live database records.
-Never invent platform statistics or customer information.
+  ADMIN: `${THAI_LANGUAGE_RULE}
+คุณคือ CRYPTEX AI ผู้ช่วยผู้ดูแลระบบ Exchange
+ช่วยอธิบายฐานข้อมูล CRYPTEX, KYC, AML, ธุรกรรม บัญชีสินทรัพย์ดิจิทัล และการทำงานของระบบ
+ห้ามแต่งสถิติ ข้อมูลลูกค้า หรือผลการดำเนินงานของระบบ
+หากไม่มีผลลัพธ์จากฐานข้อมูล ให้แจ้งอย่างตรงไปตรงมาว่ายังไม่มีข้อมูลจากฐานข้อมูลสำหรับคำถามนั้น
 `,
 }
+
+const GROQ_MODEL = 'openai/gpt-oss-20b'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -65,11 +68,10 @@ Deno.serve(async (req) => {
     }
 
     const token = authorization.replace('Bearer ', '').trim()
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const publishableKeys = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS')
     const legacyAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+    const groqApiKey = Deno.env.get('GROQ_API_KEY')
 
     let publishableKey = legacyAnonKey
 
@@ -87,8 +89,8 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Server configuration error' }, 500)
     }
 
-    if (!geminiApiKey) {
-      console.error('Gemini API key is not configured')
+    if (!groqApiKey) {
+      console.error('GROQ_API_KEY is not configured')
       return jsonResponse({ error: 'AI service is not configured' }, 500)
     }
 
@@ -144,8 +146,7 @@ Deno.serve(async (req) => {
     }
 
     const rawHistory = Array.isArray(body.history) ? body.history : []
-
-    const history = rawHistory
+    const history: Array<{ role: 'user' | 'assistant'; content: string }> = rawHistory
       .filter((item: any) =>
         item &&
         ['user', 'assistant'].includes(item.role) &&
@@ -153,52 +154,46 @@ Deno.serve(async (req) => {
       )
       .slice(-8)
       .map((item: any) => ({
-        role: item.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: item.content.slice(0, 2000) }],
+        role: item.role === 'assistant' ? 'assistant' : 'user',
+        content: item.content.slice(0, 2000),
       }))
 
-    const contents = [
+    const messages = [
+      { role: 'system', content: systemPrompt },
       ...history,
-      { role: 'user', parts: [{ text: message }] },
+      { role: 'user', content: message },
     ]
 
-    const geminiResponse = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
+    const groqResponse = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
       {
         method: 'POST',
         headers: {
+          Authorization: `Bearer ${groqApiKey}`,
           'Content-Type': 'application/json',
-          'x-goog-api-key': geminiApiKey,
         },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          contents,
-          generationConfig: {
-            maxOutputTokens: 1200,
-          },
+          model: GROQ_MODEL,
+          messages,
+          max_completion_tokens: 1200,
         }),
       },
     )
 
-    const geminiData = await geminiResponse.json()
+    const groqData = await groqResponse.json()
 
-    if (!geminiResponse.ok) {
-      console.error('Gemini API error:', geminiData?.error?.message || 'Unknown error')
+    if (!groqResponse.ok) {
+      console.error('Groq API error:', groqData?.error?.message || 'Unknown error')
       return jsonResponse({ error: 'AI service request failed' }, 502)
     }
 
-    const reply = geminiData?.candidates?.[0]?.content?.parts
-      ?.map((part: any) => part.text || '')
-      .join('')
-      .trim()
+    const reply = groqData?.choices?.[0]?.message?.content?.trim()
 
-    if (!reply) {
+    if (!reply || typeof reply !== 'string') {
       return jsonResponse({ error: 'AI returned an empty response' }, 502)
     }
 
-    return jsonResponse({ reply, role })
+    return jsonResponse({ reply, role, provider: 'Groq', model: GROQ_MODEL })
   } catch (error) {
     console.error('CRYPTEX Chat error:', error)
     return jsonResponse({ error: 'Internal server error' }, 500)
