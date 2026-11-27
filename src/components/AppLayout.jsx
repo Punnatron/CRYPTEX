@@ -15,10 +15,8 @@ export default function AppLayout() {
   const { profile, role, user } = useAuth()
   const location = useLocation()
 
-  const isCustomer = String(role || '').trim().toUpperCase() === 'CUSTOMER'
-  const pageTitle = location.pathname === '/customer-kyc' && isCustomer
-    ? 'My KYC Verification'
-    : (PAGE_TITLES[location.pathname] || 'CRYPTEX')
+  const pageTitle =
+    PAGE_TITLES[location.pathname] || 'CRYPTEX'
 
   const displayName =
     profile?.full_name ||
@@ -34,7 +32,7 @@ export default function AppLayout() {
         <header className="topbar">
           <div className="topbar-title">
             <span className="breadcrumb">
-              {isCustomer ? 'CUSTOMER PORTAL' : 'CRYPTEX / MANAGEMENT'}
+              CRYPTEX / MANAGEMENT
             </span>
             <h1>{pageTitle}</h1>
           </div>

@@ -1,45 +1,46 @@
-CRYPTEX — AIE313 WebApp
-======================
+CRYPTEX Chat Query Update (Groq + Supabase RLS)
 
-โปรเจกต์นี้ประกอบด้วย React + Vite + Supabase, Role-based access, Dashboard, AML Monitoring และ AI Assistant (Groq).
+ไฟล์ในชุดนี้
+1) supabase/functions/cryptex-chat/index.ts
+   - Edge Function ใช้ Groq openai/gpt-oss-20b
+   - ตรวจ Supabase Auth และ Role จาก users
+   - ใช้ JWT ของผู้ใช้ในการอ่าน Views เพื่อให้ RLS มีผล
+   - จำกัด Query ด้วย Tool/View ที่กำหนดไว้ ไม่อนุญาตให้ LLM สร้าง SQL อิสระ
+   - รองรับ KYC latest, Customer Risk, AML Investigation, Blockchain Risk,
+     Transaction History, Daily Transaction Summary และ Account Asset Balance
+   - ส่ง evidence (tool, view, SQL, rows) กลับไป Frontend
 
-การอัปเดต Customer KYC Workflow
---------------------------------
-- CUSTOMER: มีเมนู My KYC ใน Sidebar ของหน้า My Dashboard และปุ่ม Open My KYC บน Dashboard
-- CUSTOMER: กรอกข้อมูลส่วนตัว เลือกชนิดเอกสาร อัปโหลด JPG/PNG/PDF (ไม่เกิน 8 MB) และติดตามสถานะ
-- KYC_OFFICER: ตรวจคิวคำขอ เปิดดูเอกสาร และ Approve / Reject / Request more information
-- ADMIN: ดูภาพรวมคำขอ KYC โดยไม่มีสิทธิ์กดอนุมัติ
-- เอกสารเก็บใน Supabase Storage แบบ Private
-- Database writes ใช้ SECURITY DEFINER RPC ที่ตรวจ role และผู้เป็นเจ้าของไฟล์ ไม่เปิด DML ให้ Frontend โดยตรง
+2) src/components/Chatbot.jsx
+   - แสดงคำตอบภาษาไทย
+   - แสดง Tool, View, SQL และตารางผลลัพธ์จาก Supabase
+   - แสดงคำถามแนะนำแยกตาม Role
 
-ติดตั้ง
--------
-1. แตก ZIP แล้วนำโฟลเดอร์ AIE313_WebApp ไปวางทับโฟลเดอร์โปรเจกต์เดิม โดยเลือก Replace files
-2. เก็บ .env.local และ .git เดิมไว้ (ZIP ไม่รวมไฟล์ทั้งสองนี้)
-3. Supabase Dashboard > SQL Editor แล้วรัน supabase/AIE313_CRYPTEX_KYC_WORKFLOW.sql
-4. Terminal ในโฟลเดอร์โปรเจกต์:
-   npm install
-   npm run build
-5. เมื่อ Build ผ่าน:
-   git add .
-   git commit -m "Add customer KYC workflow"
-   git push
-6. ตรวจ Vercel deployment จากนั้น login เป็น CUSTOMER แล้วเปิดเมนู My KYC
+3) src/components/Chatbot.css
+   - Layout ของ Evidence Panel และ Raw Result Table
 
-คู่มือภาษาไทยฉบับเต็ม: KYC_WORKFLOW_SETUP_TH.md
-
-หมายเหตุ
---------
-- SQL KYC migration นี้ต้องรันหลัง RLS migration เดิม เพราะใช้ public.cryptex_has_role(text[])
-- อย่าปิด RLS และอย่าใส่ Supabase Service Role Key ใน Frontend
-- KYC_OFFICER ที่อนุมัติคำขอต้องมี public.kyc_officers.officer_id ตรงกับ public.users.user_id และ officer_status = ACTIVE
-- ZIP ไม่รวม .env.local, .git, node_modules และ dist เพื่อเก็บ credentials/repository เดิมและให้ build จาก source ล่าสุด
-- ใช้ข้อมูล/ไฟล์ทดสอบสำหรับการสาธิตเท่านั้น ไม่ควรอัปโหลดบัตรประชาชนหรือเอกสารจริง
-
-Chatbot
--------
-- Edge Function อยู่ที่ supabase/functions/cryptex-chat/index.ts
-- ใช้ Groq openai/gpt-oss-20b และ Supabase Auth/RLS ของผู้เรียก
-- Query แบบ read-only จำกัดตาม Tool/View ที่กำหนด ไม่อนุญาตให้ LLM สร้าง SQL อิสระ
-- Deploy Edge Function ด้วยคำสั่ง:
+วิธีติดตั้ง
+- สำรองไฟล์เดิมก่อน
+- แทนที่ไฟล์ 3 จุดตาม path ใน ZIP
+- รัน npm run build
+- หาก Build ผ่าน ให้ commit/push ไฟล์ src/components/* ขึ้น GitHub
+- Deploy Edge Function ด้วย:
   npx --yes supabase@latest functions deploy cryptex-chat --project-ref ubvgrzdiyyywujwkvhfl --use-api
+- จากนั้นทดสอบ Chat ตามรายการในแชท
+
+ข้อควรทราบ
+- ไม่ใช้ Service Role Key; ทุก query ใช้ JWT ผู้ใช้และ RLS เดิม
+- Query เป็น read-only และใช้เฉพาะ View ที่ allowlist ไว้
+- CUSTOMER ต้องถามข้อมูลของตนเองด้วยคำอย่าง “ของฉัน” / “my ...”
+- AML_ANALYST ไม่สามารถถาม KYC list ผ่าน Chat แม้ฐานข้อมูลบางตารางมี RLS SELECT ให้ role นี้
+- การ aggregate KYC/AML ถูก group ใน Edge Function จาก rows ที่อ่านได้จาก View;
+  ส่วน v_daily_transaction_summary เป็น View ที่ aggregate ใน PostgreSQL อยู่แล้ว
+
+
+KYC STATUS ALIGNMENT UPDATE
+---------------------------
+ดูคู่มือ KYC_STATUS_FIX_SETUP_TH.md สำหรับการแก้สถานะเอกสารหลัง APPROVE/REJECT
+และการทดสอบ MORE_INFO_REQUIRED / REJECTED แบบครบ workflow
+
+SQL migration ใหม่: supabase/AIE313_CRYPTEX_KYC_STATUS_FIX.sql
+เนื่องจาก KYC Workflow ในฐานข้อมูลนี้ติดตั้งและทดสอบแล้ว ให้รัน Status Fix SQL
+เพียงไฟล์เดียวตามคู่มือ ไม่ต้องรัน Initial Workflow ซ้ำ

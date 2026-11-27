@@ -1,4 +1,4 @@
-
+﻿
 import Chatbot from '../components/Chatbot'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
@@ -17,8 +17,7 @@ import {
   TrendingUp,
   Activity,
   CircleAlert,
-  Clock3,
-  ShieldCheck
+  Clock3
 } from 'lucide-react'
 
 import {
@@ -389,12 +388,6 @@ function Dashboard() {
             >
               My Dashboard
             </SidebarLink>
-            <SidebarLink
-              to="/customer-kyc"
-              icon={Users}
-            >
-              My KYC
-            </SidebarLink>
           </nav>
 
           <div className="sidebar-bottom">
@@ -449,24 +442,6 @@ function Dashboard() {
                 </p>
               </div>
             </div>
-
-            <article className="panel" style={{ marginBottom: 22, borderColor: '#31577e' }}>
-              <div className="panel-heading">
-                <div>
-                  <h3>Identity Verification (KYC)</h3>
-                  <p>Complete your identity information and submit an identity document for review.</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-                <p style={{ margin: 0, color: '#91a4bd', fontSize: 12, lineHeight: 1.7 }}>
-                  Start or check your KYC application from the customer portal.
-                </p>
-                <NavLink to="/customer-kyc" className="nav-item active" style={{ width: 'fit-content', minHeight: 40 }}>
-                  <ShieldCheck size={17} />
-                  <span>Open My KYC</span>
-                </NavLink>
-              </div>
-            </article>
 
             <section className="stats-grid">
               <article className="stat-card">

@@ -36,7 +36,7 @@
 
 1. สำรองโฟลเดอร์ `AIE313_WebApp` เดิมไว้ก่อน
 2. แตก ZIP นี้ แล้วนำโฟลเดอร์ `AIE313_WebApp` จากใน ZIP ไปวางทับโปรเจกต์เดิมที่ `C:\Users\TUF\Desktop\AIE313_WebApp` โดยเลือก **Replace files** เมื่อ Windows ถาม
-3. ZIP นี้ตั้งใจไม่รวม `.git`, `.env.local`, `node_modules` และไฟล์ `.vercel` เพื่อไม่เขียนทับ Git repository, credential หรือ local dependencies เดิม ให้เก็บ `.env.local` ของคุณไว้เหมือนเดิม
+3. ZIP นี้ไม่รวม `.git`, `.env.local` และไฟล์ `.vercel` เพื่อไม่เขียนทับ Git repository และ credentials เดิม ให้เก็บสองรายการแรกไว้เหมือนเดิม; ZIP ฉบับล่าสุดมี `node_modules` จากโปรเจกต์ Windows ต้นฉบับรวมอยู่ด้วย
 4. เปิด Supabase Dashboard → SQL Editor แล้วรันไฟล์ `supabase/AIE313_CRYPTEX_KYC_WORKFLOW.sql` ทั้งไฟล์หนึ่งครั้ง
 5. ที่ Terminal ใน `AIE313_WebApp` รัน:
 
@@ -88,4 +88,4 @@ WHERE upper(u.role) = 'KYC_OFFICER';
 - ไม่ต้องรัน RLS migration เดิมซ้ำ และอย่าปิด RLS
 - หาก Supabase Auth account มีอยู่แต่ไม่มีแถวใน `public.users` หรือ role/status ไม่ตรง CUSTOMER/ACTIVE ฟังก์ชันจะปฏิเสธการส่ง KYC
 - เอกสารที่อัปโหลดเป็นข้อมูลส่วนบุคคล ควรใช้ไฟล์ทดสอบเท่านั้นสำหรับการสาธิตในชั้นเรียน และไม่ควรอัปโหลดเอกสารจริง
-- ZIP ไม่รวม `.env.local` เพื่อป้องกันการเผยแพร่ keys; ให้เก็บไฟล์ local และ Vercel environment variables เดิมไว้
+- ZIP ไม่รวม `.env.local` เพื่อป้องกันการเผยแพร่ keys; ให้เก็บไฟล์ local และ Vercel environment variables เดิมไว้ และมี `node_modules` จากชุด Windows ต้นฉบับ

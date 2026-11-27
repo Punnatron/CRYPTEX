@@ -61,7 +61,7 @@ export default function Sidebar() {
 
   const navigate = useNavigate()
 
-  const normalizedRole = String(role || '').trim().toUpperCase()
+  const normalizedRole = String(role || '').toUpperCase()
 
   const displayName =
     profile?.full_name ||
@@ -113,7 +113,7 @@ export default function Sidebar() {
               }
             >
               <Icon size={18} />
-              <span>{normalizedRole === 'CUSTOMER' && item.path === '/customer-kyc' ? 'My KYC' : normalizedRole === 'CUSTOMER' && item.path === '/dashboard' ? 'My Dashboard' : item.label}</span>
+              <span>{item.label}</span>
             </NavLink>
           )
         })}
