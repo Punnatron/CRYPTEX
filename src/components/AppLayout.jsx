@@ -1,9 +1,10 @@
-﻿import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Sidebar from './Sidebar'
 import { Blocks } from 'lucide-react'
 
 const PAGE_TITLES = {
+  '/customer-management': 'Customer Management',
   '/customer-kyc': 'Customer KYC',
   '/accounts-assets': 'Accounts & Assets',
   '/transactions': 'Transactions',

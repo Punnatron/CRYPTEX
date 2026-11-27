@@ -21,6 +21,12 @@ const MENU = [
     roles: ['ADMIN', 'KYC_OFFICER', 'AML_ANALYST', 'CUSTOMER']
   },
   {
+    label: 'Customer Management',
+    path: '/customer-management',
+    icon: Users,
+    roles: ['ADMIN']
+  },
+  {
     label: 'Customer KYC',
     path: '/customer-kyc',
     icon: Users,

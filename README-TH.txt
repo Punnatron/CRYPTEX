@@ -44,3 +44,10 @@ KYC STATUS ALIGNMENT UPDATE
 SQL migration ใหม่: supabase/AIE313_CRYPTEX_KYC_STATUS_FIX.sql
 เนื่องจาก KYC Workflow ในฐานข้อมูลนี้ติดตั้งและทดสอบแล้ว ให้รัน Status Fix SQL
 เพียงไฟล์เดียวตามคู่มือ ไม่ต้องรัน Initial Workflow ซ้ำ
+
+ADMIN CUSTOMER PROFILE CRUD
+---------------------------
+ดูคู่มือ CRUD_SETUP_TH.md สำหรับหน้า Customer Management ของ ADMIN
+และวิธีติดตั้ง SQL migration ที่ supabase/AIE313_CRYPTEX_CUSTOMER_PROFILE_CRUD.sql
+ฟังก์ชัน CRUD ทำผ่าน Supabase RPC ที่ตรวจ ADMIN/ACTIVE และบันทึก Audit Log
+ไม่ต้องสร้างตารางใหม่หรือรัน SQL ติดตั้งฐานข้อมูลหลักซ้ำ

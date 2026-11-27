@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import AMLMonitoring from './pages/AMLMonitoring'
 import ModulePlaceholder from './pages/ModulePlaceholder'
 import CustomerKYC from './pages/CustomerKYC'
+import CustomerManagement from './pages/CustomerManagement'
 import AccessDenied from './pages/AccessDenied'
 
 import ProtectedRoute from './components/ProtectedRoute'
@@ -26,6 +27,13 @@ function App() {
         {/* Dashboard */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
+        </Route>
+
+        {/* Admin Customer Profile CRUD */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+          <Route element={<AppLayout />}>
+            <Route path="/customer-management" element={<CustomerManagement />} />
+          </Route>
         </Route>
 
         {/* Customer KYC */}
