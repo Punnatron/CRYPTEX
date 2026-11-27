@@ -423,6 +423,17 @@ function Dashboard() {
             >
               My Dashboard
             </SidebarLink>
+
+            {customerKyc.status === 'APPROVED' && (
+              <>
+                <SidebarLink to="/accounts-assets" icon={Wallet}>
+                  Accounts & Assets
+                </SidebarLink>
+                <SidebarLink to="/transactions" icon={ArrowLeftRight}>
+                  Transactions
+                </SidebarLink>
+              </>
+            )}
           </nav>
 
           <div className="sidebar-bottom">

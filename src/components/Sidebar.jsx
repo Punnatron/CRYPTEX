@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 import {
   LayoutDashboard,
@@ -28,13 +30,13 @@ const MENU = [
     label: 'Accounts & Assets',
     path: '/accounts-assets',
     icon: Wallet,
-    roles: ['ADMIN']
+    roles: ['ADMIN', 'CUSTOMER']
   },
   {
     label: 'Transactions',
     path: '/transactions',
     icon: ArrowLeftRight,
-    roles: ['ADMIN']
+    roles: ['ADMIN', 'CUSTOMER']
   },
   {
     label: 'AML Monitoring',
@@ -60,8 +62,53 @@ export default function Sidebar() {
   } = useAuth()
 
   const navigate = useNavigate()
+  const [customerKycApproved, setCustomerKycApproved] = useState(false)
 
   const normalizedRole = String(role || '').toUpperCase()
+
+  useEffect(() => {
+    let active = true
+
+    async function loadCustomerKycStatus() {
+      if (normalizedRole !== 'CUSTOMER' || !profile?.user_id) {
+        setCustomerKycApproved(false)
+        return
+      }
+
+      try {
+        const { data: customer, error: customerError } = await supabase
+          .from('customer_profiles')
+          .select('customer_id')
+          .eq('user_id', profile.user_id)
+          .maybeSingle()
+        if (customerError) throw customerError
+
+        if (!customer) {
+          if (active) setCustomerKycApproved(false)
+          return
+        }
+
+        const { data: verification, error: verificationError } = await supabase
+          .from('kyc_verifications')
+          .select('verification_status')
+          .eq('customer_id', customer.customer_id)
+          .maybeSingle()
+        if (verificationError) throw verificationError
+
+        if (active) {
+          setCustomerKycApproved(
+            String(verification?.verification_status || '').toUpperCase() === 'APPROVED'
+          )
+        }
+      } catch (error) {
+        console.error('Unable to load customer KYC status for navigation:', error.message)
+        if (active) setCustomerKycApproved(false)
+      }
+    }
+
+    loadCustomerKycStatus()
+    return () => { active = false }
+  }, [normalizedRole, profile?.user_id])
 
   const displayName =
     profile?.full_name ||
@@ -69,9 +116,11 @@ export default function Sidebar() {
     user?.email?.split('@')[0] ||
     'User'
 
-  const visibleMenu = MENU.filter(item =>
-    item.roles.includes(normalizedRole)
-  )
+  const visibleMenu = MENU.filter(item => {
+    if (!item.roles.includes(normalizedRole)) return false
+    const isExchangeMenu = ['/accounts-assets', '/transactions'].includes(item.path)
+    return normalizedRole !== 'CUSTOMER' || !isExchangeMenu || customerKycApproved
+  })
 
   async function handleLogout() {
     const { error } = await signOut()

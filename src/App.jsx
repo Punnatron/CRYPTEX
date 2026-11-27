@@ -47,7 +47,7 @@ function App() {
         {/* Accounts & Assets */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['ADMIN']} />
+            <ProtectedRoute allowedRoles={['ADMIN', 'CUSTOMER']} requireApprovedKyc />
           }
         >
           <Route element={<AppLayout />}>
@@ -61,7 +61,7 @@ function App() {
         {/* Transactions */}
         <Route
           element={
-            <ProtectedRoute allowedRoles={['ADMIN']} />
+            <ProtectedRoute allowedRoles={['ADMIN', 'CUSTOMER']} requireApprovedKyc />
           }
         >
           <Route element={<AppLayout />}>
