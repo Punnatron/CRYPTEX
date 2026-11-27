@@ -1,4 +1,4 @@
-﻿
+
 import Chatbot from '../components/Chatbot'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Activity,
   CircleAlert,
-  Clock3
+  Clock3,
+  ShieldCheck
 } from 'lucide-react'
 
 import {
@@ -105,6 +106,7 @@ function Dashboard() {
   const [transactionData, setTransactionData] = useState([])
   const [amlData, setAmlData] = useState([])
   const [dailyData, setDailyData] = useState([])
+  const [customerKyc, setCustomerKyc] = useState({ loading: true, status: 'NOT SUBMITTED', submittedAt: null, reason: null, error: '' })
 
   const [dataLoading, setDataLoading] = useState(false)
   const [error, setError] = useState('')
@@ -188,6 +190,39 @@ function Dashboard() {
     profile,
     loadDashboard
   ])
+
+  useEffect(() => {
+    let active = true
+    async function loadCustomerKyc() {
+      if (role !== 'CUSTOMER' || !profile?.user_id) return
+      setCustomerKyc(current => ({ ...current, loading: true, error: '' }))
+      try {
+        const { data: customer, error: customerError } = await supabase
+          .from('customer_profiles')
+          .select('customer_id, customer_status')
+          .eq('user_id', profile.user_id)
+          .maybeSingle()
+        if (customerError) throw customerError
+        if (!customer) {
+          if (active) setCustomerKyc({ loading: false, status: 'NOT SUBMITTED', submittedAt: null, reason: null, error: '' })
+          return
+        }
+        const { data: verification, error: verificationError } = await supabase
+          .from('kyc_verifications')
+          .select('verification_status, submitted_at, rejection_reason')
+          .eq('customer_id', customer.customer_id)
+          .maybeSingle()
+        if (verificationError) throw verificationError
+        let status = verification?.verification_status || 'NOT SUBMITTED'
+        if (status === 'PENDING' && verification?.rejection_reason) status = 'MORE INFO REQUESTED'
+        if (active) setCustomerKyc({ loading: false, status, submittedAt: verification?.submitted_at || null, reason: verification?.rejection_reason || null, error: '' })
+      } catch (e) {
+        if (active) setCustomerKyc({ loading: false, status: 'UNKNOWN', submittedAt: null, reason: null, error: e.message || 'Unable to load KYC status' })
+      }
+    }
+    loadCustomerKyc()
+    return () => { active = false }
+  }, [role, profile?.user_id])
 
   async function handleLogout() {
     const { error: logoutError } = await signOut()
@@ -468,6 +503,28 @@ function Dashboard() {
                 <small>Your account is active</small>
               </article>
             </section>
+
+            <article className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h3>Identity Verification (KYC)</h3>
+                  <p>Your verification status determines access to exchange account and transaction services.</p>
+                </div>
+                <NavLink to="/customer-kyc" className="nav-item" style={{ display: 'inline-flex', width: 'auto' }}>
+                  <ShieldCheck size={16} /> {customerKyc.status === 'APPROVED' ? 'View KYC' : 'Complete KYC'}
+                </NavLink>
+              </div>
+              <div className="content">
+                <p><strong>Status:</strong> <span style={{ fontWeight: 800, color: customerKyc.status === 'APPROVED' ? '#16a34a' : customerKyc.status === 'REJECTED' ? '#dc2626' : '#d97706' }}>{customerKyc.loading ? 'Loading…' : customerKyc.status}</span></p>
+                {customerKyc.submittedAt && <p><strong>Last submitted:</strong> {formatDateTime(customerKyc.submittedAt)}</p>}
+                {customerKyc.error && <p role="alert" style={{ color: '#dc2626' }}>{customerKyc.error}</p>}
+                {customerKyc.status === 'APPROVED' ? (
+                  <p style={{ color: '#15803d' }}>Your identity verification is approved. Your account is eligible for exchange data access, subject to the permissions assigned to your account.</p>
+                ) : (
+                  <p style={{ color: '#b45309' }}>Exchange account and transaction data remain restricted at the database level until your KYC application is approved. {customerKyc.status === 'REJECTED' ? 'You may correct your information and resubmit.' : customerKyc.status === 'MORE INFO REQUESTED' ? 'Please provide the additional information requested by the KYC officer.' : 'Submit your identity information to begin verification.'}</p>
+                )}
+              </div>
+            </article>
 
             <article className="panel">
               <div className="panel-heading">
