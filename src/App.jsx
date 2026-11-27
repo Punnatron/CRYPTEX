@@ -1,4 +1,4 @@
-﻿import {
+import {
   BrowserRouter,
   Routes,
   Route,
@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AMLMonitoring from './pages/AMLMonitoring'
 import ModulePlaceholder from './pages/ModulePlaceholder'
+import CustomerKYC from './pages/CustomerKYC'
 import AccessDenied from './pages/AccessDenied'
 
 import ProtectedRoute from './components/ProtectedRoute'
@@ -31,14 +32,14 @@ function App() {
         <Route
           element={
             <ProtectedRoute
-              allowedRoles={['ADMIN', 'KYC_OFFICER']}
+              allowedRoles={['ADMIN', 'KYC_OFFICER', 'CUSTOMER']}
             />
           }
         >
           <Route element={<AppLayout />}>
             <Route
               path="/customer-kyc"
-              element={<ModulePlaceholder />}
+              element={<CustomerKYC />}
             />
           </Route>
         </Route>

@@ -15,6 +15,10 @@ const jsonResponse = (body: unknown, status = 200) =>
 const GROQ_MODEL = 'openai/gpt-oss-20b'
 const MAX_ROWS = 100
 const DISPLAY_ROWS = 25
+// Keep the LLM context small; full evidence remains available in the UI.
+const AI_CONTEXT_ROWS = 12
+const MAX_HISTORY_MESSAGES = 4
+const MAX_HISTORY_CHARS = 500
 
 const BASE_THAI_RULES = `
 คุณคือ CRYPTEX AI ผู้ช่วยของระบบจัดการ Digital Asset Exchange
@@ -56,6 +60,7 @@ type Plan = {
   ascending?: boolean
   limit?: number
   approvedOnly?: boolean
+  severityFilter?: string
   aggregate?: 'kyc_status' | 'aml_severity' | 'transaction_asset_type'
   note: string
   sql: string
@@ -123,15 +128,19 @@ function choosePlan(message: string, role: string): PlanResult {
       return { denied: 'คำถามนี้เกี่ยวกับ AML Alerts และ Investigation ซึ่งอนุญาตเฉพาะ ADMIN และ AML_ANALYST เท่านั้น' }
     }
     const aggregate = isAggregationRequest(message) && /(แยกตาม|severity|ความรุนแรง|ระดับ|จำนวน|กี่|count|group)/i.test(message)
+    const severityMatch = message.match(/\b(CRITICAL|HIGH|MEDIUM|LOW)\b/i)
+    const severityFilter = severityMatch ? severityMatch[1].toUpperCase() : undefined
+    const severityWhere = severityFilter ? `\nWHERE severity = '${severityFilter}'` : ''
     return {
       tool: aggregate ? 'summarize_aml_alerts_by_severity' : 'get_aml_investigation_dashboard',
       view: 'v_aml_investigation_dashboard',
       select: 'alert_id,created_at,severity,alert_status,alert_description,indicator_code,indicator_name,trigger_value,risk_score_contribution,customer_id,customer_name,address,network_name,transaction_id,transaction_type,transaction_amount,transaction_asset,linked_case_count,case_numbers',
       orderBy: 'created_at',
       limit: MAX_ROWS,
+      severityFilter,
       aggregate: aggregate ? 'aml_severity' : undefined,
-      note: 'View นี้ JOIN AML Alerts, Risk Indicators, Customer, Blockchain Address, Transaction และ Case Rollup',
-      sql: `SELECT *\nFROM public.v_aml_investigation_dashboard\nORDER BY created_at DESC\nLIMIT ${MAX_ROWS};`,
+      note: 'View นี้ JOIN AML Alerts, Risk Indicators, Customer, Blockchain Address, Transaction และ Case Rollup' + (severityFilter ? ` โดยกรองเฉพาะ Severity = ${severityFilter}` : ''),
+      sql: `SELECT *\nFROM public.v_aml_investigation_dashboard${severityWhere}\nORDER BY created_at DESC\nLIMIT ${MAX_ROWS};`,
     }
   }
 
@@ -260,6 +269,9 @@ async function runPlan(supabase: any, plan: Plan) {
   if (plan.approvedOnly) {
     query = query.eq('verification_status', 'APPROVED')
   }
+  if (plan.severityFilter) {
+    query = query.eq('severity', plan.severityFilter)
+  }
 
   const { data, error } = await query
   if (error) {
@@ -360,8 +372,8 @@ Deno.serve(async (req) => {
 
     const history = (Array.isArray(body.history) ? body.history : [])
       .filter((item: any) => item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string')
-      .slice(-8)
-      .map((item: any) => ({ role: item.role, content: item.content.slice(0, 1500) }))
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map((item: any) => ({ role: item.role, content: item.content.slice(0, MAX_HISTORY_CHARS) }))
 
     const planResult = choosePlan(message, role)
     if (planResult && 'denied' in planResult) {
@@ -382,12 +394,27 @@ Deno.serve(async (req) => {
       queryResult = await runPlan(supabase, planResult)
     }
 
+    const aiRows = queryResult
+      ? queryResult.answerRows.slice(0, AI_CONTEXT_ROWS).map((row) => {
+          const compact: Record<string, unknown> = {}
+          for (const [key, value] of Object.entries(row)) {
+            if (typeof value === 'string') compact[key] = value.slice(0, 240)
+            else if (Array.isArray(value)) compact[key] = value.slice(0, 8)
+            else compact[key] = value
+          }
+          return compact
+        })
+      : []
+
     const latestDataContext = queryResult
       ? `ผลข้อมูลจาก Supabase สำหรับคำถามล่าสุด (แหล่งข้อมูลที่อนุญาต):\n${JSON.stringify({
           view: queryResult.evidence.view,
           tool: queryResult.evidence.tool,
-          rows: queryResult.answerRows,
-        })}`
+          totalRows: queryResult.evidence.resultRowCount,
+          rowsIncludedForSummary: aiRows.length,
+          rowsTruncatedForSummary: queryResult.evidence.resultRowCount > aiRows.length,
+          rows: aiRows,
+        })}\nหาก rowsTruncatedForSummary เป็น true ให้ระบุว่ารายละเอียดที่ AI ใช้สรุปเป็นเพียงบางแถว ห้ามอ้างว่าได้ตรวจสอบรายละเอียดครบทุกแถว แต่จำนวน totalRows เป็นจำนวนผลลัพธ์จาก Query จริง`
       : 'คำถามนี้ไม่มีการเรียกฐานข้อมูลในรอบนี้ ห้ามอ้างว่ามีการอ่านข้อมูลจริง และห้ามสร้างตัวเลขหรือรายชื่อจากฐานข้อมูล'
 
     const userContent = `${message}\n\n${latestDataContext}`
@@ -401,7 +428,8 @@ Deno.serve(async (req) => {
         model: GROQ_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
-          ...history,
+          // Database questions are self-contained; omit old chat history to avoid TPM overflow.
+          ...(queryResult ? [] : history),
           { role: 'user', content: userContent },
         ],
         max_completion_tokens: 1400,

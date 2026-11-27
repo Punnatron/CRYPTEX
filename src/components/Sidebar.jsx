@@ -1,4 +1,4 @@
-﻿import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 import {
@@ -22,7 +22,7 @@ const MENU = [
     label: 'Customer KYC',
     path: '/customer-kyc',
     icon: Users,
-    roles: ['ADMIN', 'KYC_OFFICER']
+    roles: ['ADMIN', 'KYC_OFFICER', 'CUSTOMER']
   },
   {
     label: 'Accounts & Assets',
@@ -61,7 +61,7 @@ export default function Sidebar() {
 
   const navigate = useNavigate()
 
-  const normalizedRole = String(role || '').toUpperCase()
+  const normalizedRole = String(role || '').trim().toUpperCase()
 
   const displayName =
     profile?.full_name ||
@@ -113,7 +113,7 @@ export default function Sidebar() {
               }
             >
               <Icon size={18} />
-              <span>{item.label}</span>
+              <span>{normalizedRole === 'CUSTOMER' && item.path === '/customer-kyc' ? 'My KYC' : normalizedRole === 'CUSTOMER' && item.path === '/dashboard' ? 'My Dashboard' : item.label}</span>
             </NavLink>
           )
         })}
